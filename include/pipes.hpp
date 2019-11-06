@@ -23,12 +23,12 @@
 
 
 enum DIR {
-    CIMA,
-    BAIXO,
-    FRENTE,
-    TRAS,
-    DIREITA,
-    ESQUERDA,
+    CIMA = 1,
+    BAIXO = 2,
+    FRENTE = 3,
+    TRAS = 4,
+    DIREITA = 5,
+    ESQUERDA = 6,
 };
 
 
@@ -47,18 +47,20 @@ class Pipes {
 
     private:
         cubo_vec mundo;
+        cubo_vec memoria;
         std::vector<ponto> pos;
         unsigned long contador;
         char num_pipes;
         int dim;
         double tamanho_cubo;
+        bool conectar;
 
     public:
         Pipes(int num_pipes, int dim);
 
         void att();
         void render();
-        void tentar_conectar(int x, int y, int z, int numero_cano);
+        void resetar();
         void set_cor(int in);
 
 

@@ -7,6 +7,17 @@
 #define dir_max ESQUERDA
 
 
+#define rand_att
+
+#ifdef rand_att
+    #define vel_att 10
+#else
+    #define vel_att 110
+#endif
+
+#define espera_att 2500
+
+
 int random(int min, int max) {
     std::mt19937_64 rng;
     uint64_t timeSeed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
@@ -17,6 +28,7 @@ int random(int min, int max) {
 }
 
 
+
 Pipes::Pipes(int num_pipes, int dim) {
 
 
@@ -24,24 +36,36 @@ Pipes::Pipes(int num_pipes, int dim) {
     this->num_pipes = num_pipes;
     this->dim = dim;
 
-    this->tamanho_cubo = 0.4;
+    this->conectar = true; // conectar cubos
+
+    this->tamanho_cubo = 0.1;
 
     this->pos.reserve(num_pipes);
 
     this->mundo.reserve(this->dim);
+    this->memoria.reserve(this->dim);
 
     for(int i = 0; i < this->dim; i++) {
         this->mundo[i].reserve(this->dim);
+        this->memoria[i].reserve(this->dim);
         for(int j = 0; j < this->dim; j++) {
             this->mundo[i][j].reserve(this->dim);
+            this->memoria[i][j].reserve(this->dim);
         }
     }
 
+    this->resetar();
+
+
+}
+
+void Pipes::resetar() {
 
     for(int i = 0; i < this->dim; i++) {
         for(int j = 0; j < this->dim; j++) {
             for(int k = 0; k < this->dim; k++) {
                 this->mundo[i][j][k] = 0;
+                this->memoria[i][j][k] = 0;
             }
         }
     }
@@ -70,15 +94,22 @@ Pipes::Pipes(int num_pipes, int dim) {
 
 }
 
-
 void Pipes::att() {
-    if (this->contador > 0) { return; }
     this->contador++;
-    this->contador %= 100;
+    if (this->contador < espera_att|| this->contador % vel_att != 0) { return; }
 
 
-    //TODO: otimizar, por bool?
+    //if(random(1, 10000)< 10) { this->resetar(); return; }
+
+
+
+    //TODO: otimizar se pode andar, por bool?
+
+#ifdef rand_att
+    int i = random(0, this->num_pipes - 1);
+#else
     for(int i = 0; i < this->num_pipes; i++) {
+#endif
         double x = this->pos[i].x;
         double y = this->pos[i].y;
         double z = this->pos[i].z;
@@ -86,29 +117,30 @@ void Pipes::att() {
 
         // procurar uma direção
         for(int j = 0; j < dir_max; j++) {
-            int dir = random(dir_min, dir_max);
+
+            int dir = random(1, 6);
 
             double nx = x;
             double ny = y;
             double nz = z;
 
-            switch((DIR) dir) {
-                case CIMA:
+            switch(dir) {
+                case 1: // CIMA
                     ny += 1;
                     goto dir_set;
-                case BAIXO:
+                case 2: // BAIXO
                     ny -= 1;
                     goto dir_set;
-                case FRENTE:
-                    nz += 1;
-                    goto dir_set;
-                case TRAS:
+                case 3: // FRENTE
                     nz -= 1;
                     goto dir_set;
-                case DIREITA:
+                case 4: // TRAS
+                    nz += 1;
+                    goto dir_set;
+                case 5: // DIREITA
                     nx += 1;
                     goto dir_set;
-                case ESQUERDA:
+                case 6: // ESQUERDA
                     nx -= 1;
                     goto dir_set;
                 default:
@@ -123,14 +155,10 @@ void Pipes::att() {
             if (nz < 0)          {goto prox_cano;}
             if (nz >= this->dim) {goto prox_cano;}
 
-
-            std::cout << "nx " << nx << "\n";
-            std::cout << "ny " << ny << "\n";
-            std::cout << "nz " << nz << "\n";
-            std::cout << "\n";
-
             if(this->mundo[nx][ny][nz] == 0) {
                 this->mundo[nx][ny][nz] = i+1; // seta o numero do cano
+                this->memoria[nx][ny][nz] = dir; // seta a direção tomada pra chegar aqui
+
                 this->pos[i].x = nx;
                 this->pos[i].y = ny;
                 this->pos[i].z = nz;
@@ -139,9 +167,12 @@ void Pipes::att() {
         }
 
     prox_cano:
+#ifdef rand_att
+        return;
+#else
         continue;
-
-    }
+        }
+#endif
 
 }
 
@@ -152,70 +183,312 @@ void Pipes::render() {
         for(int j = 0; j < this->dim; j++) {
             for(int k = 0; k < this->dim; k++) {
 
-                int num_cano = this->mundo[i][k][j];
+                int num_cano = this->mundo[i][j][k];
                 if(num_cano != 0) {
 
-                    double dx = this->tamanho_cubo;
-
+                    double dt = this->tamanho_cubo;
 
                     // FRONT
                     glBegin(GL_POLYGON);
                         this->set_cor(num_cano);
-
-                        glVertex3f( i + dx, j + dx, k + dx);
-                        glVertex3f( i - dx, j + dx, k + dx);
-                        glVertex3f( i - dx, j - dx, k + dx);
-                        glVertex3f( i + dx, j - dx, k + dx);
-
+                        glVertex3f( i + dt, j + dt, k + dt);
+                        glVertex3f( i - dt, j + dt, k + dt);
+                        glVertex3f( i - dt, j - dt, k + dt);
+                        glVertex3f( i + dt, j - dt, k + dt);
                     glEnd();
 
                     // BACK
                     glBegin(GL_POLYGON);
                         this->set_cor(num_cano);
-                        glVertex3f( i + dx, j + dx, k - dx);
-                        glVertex3f( i - dx, j + dx, k - dx);
-                        glVertex3f( i - dx, j - dx, k - dx);
-                        glVertex3f( i + dx, j - dx, k - dx);
+                        glVertex3f( i + dt, j + dt, k - dt);
+                        glVertex3f( i - dt, j + dt, k - dt);
+                        glVertex3f( i - dt, j - dt, k - dt);
+                        glVertex3f( i + dt, j - dt, k - dt);
                     glEnd();
 
                     // RIGHT
                     glBegin(GL_POLYGON);
                         this->set_cor(num_cano);
-                        glVertex3f( i + dx, j + dx, k + dx);
-                        glVertex3f( i + dx, j - dx, k + dx);
-                        glVertex3f( i + dx, j - dx, k - dx);
-                        glVertex3f( i + dx, j + dx, k - dx);
+                        glVertex3f( i + dt, j + dt, k + dt);
+                        glVertex3f( i + dt, j - dt, k + dt);
+                        glVertex3f( i + dt, j - dt, k - dt);
+                        glVertex3f( i + dt, j + dt, k - dt);
                     glEnd();
 
                     // LEFT
                     glBegin(GL_POLYGON);
                         this->set_cor(num_cano);
-                        glVertex3f( i - dx, j + dx, k + dx);
-                        glVertex3f( i - dx, j - dx, k + dx);
-                        glVertex3f( i - dx, j - dx, k - dx);
-                        glVertex3f( i - dx, j + dx, k - dx);
+                        glVertex3f( i - dt, j + dt, k + dt);
+                        glVertex3f( i - dt, j - dt, k + dt);
+                        glVertex3f( i - dt, j - dt, k - dt);
+                        glVertex3f( i - dt, j + dt, k - dt);
                     glEnd();
 
                     // TOP
                     glBegin(GL_POLYGON);
                         this->set_cor(num_cano);
-                        glVertex3f( i - dx, j + dx, k + dx);
-                        glVertex3f( i + dx, j + dx, k + dx);
-                        glVertex3f( i + dx, j + dx, k - dx);
-                        glVertex3f( i - dx, j + dx, k - dx);
+                        glVertex3f( i - dt, j + dt, k + dt);
+                        glVertex3f( i + dt, j + dt, k + dt);
+                        glVertex3f( i + dt, j + dt, k - dt);
+                        glVertex3f( i - dt, j + dt, k - dt);
                     glEnd();
 
                     // BOTTOM
                     glBegin(GL_POLYGON);
                         this->set_cor(num_cano);
-                        glVertex3f( i - dx, j - dx, k + dx);
-                        glVertex3f( i + dx, j - dx, k + dx);
-                        glVertex3f( i + dx, j - dx, k - dx);
-                        glVertex3f( i - dx, j - dx, k - dx);
+                        glVertex3f( i - dt, j - dt, k + dt);
+                        glVertex3f( i + dt, j - dt, k + dt);
+                        glVertex3f( i + dt, j - dt, k - dt);
+                        glVertex3f( i - dt, j - dt, k - dt);
                     glEnd();
 
 
-                    this->tentar_conectar(i, j, k, num_cano);
+                    //TODO: passar pra uma função a parte
+                    if(this->conectar) {
+
+                        int dir = this->memoria[i][j][k];
+                        if (dir == 0) { continue; }
+
+                        switch(dir) {
+                            case 1: // CIMA
+
+                                // FRENTE
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i - dt, j   - dt, k - dt);
+                                    glVertex3f(i - dt, j-1 + dt, k - dt);
+                                    glVertex3f(i + dt, j-1 + dt, k - dt);
+                                    glVertex3f(i + dt, j   - dt, k - dt);
+                                glEnd();
+
+                                // ESQUERDA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i - dt, j   - dt, k - dt);
+                                    glVertex3f(i - dt, j   - dt, k + dt);
+                                    glVertex3f(i - dt, j-1 + dt, k + dt);
+                                    glVertex3f(i - dt, j-1 + dt, k - dt);
+                                glEnd();
+
+                                // TRAS
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i - dt, j   - dt, k + dt);
+                                    glVertex3f(i - dt, j-1 + dt, k + dt);
+                                    glVertex3f(i + dt, j-1 + dt, k + dt);
+                                    glVertex3f(i + dt, j   - dt, k + dt);
+                                glEnd();
+
+                                // DIREITA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i + dt, j   - dt, k - dt);
+                                    glVertex3f(i + dt, j   - dt, k + dt);
+                                    glVertex3f(i + dt, j-1 + dt, k + dt);
+                                    glVertex3f(i + dt, j-1 + dt, k - dt);
+                                glEnd();
+
+                                break;
+                            case 2: // BAIXO
+
+                                // FRENTE
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i - dt, j   + dt, k - dt);
+                                    glVertex3f(i + dt, j   + dt, k - dt);
+                                    glVertex3f(i + dt, j+1 - dt, k - dt);
+                                    glVertex3f(i - dt, j+1 - dt, k - dt);
+                                glEnd();
+
+                                // ESQUERDA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i - dt, j   + dt, k - dt);
+                                    glVertex3f(i - dt, j+1 - dt, k - dt);
+                                    glVertex3f(i - dt, j+1 - dt, k + dt);
+                                    glVertex3f(i - dt, j   + dt, k + dt);
+                                glEnd();
+
+                                // TRAS
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i - dt, j   + dt, k + dt);
+                                    glVertex3f(i + dt, j   + dt, k + dt);
+                                    glVertex3f(i + dt, j+1 - dt, k + dt);
+                                    glVertex3f(i - dt, j+1 - dt, k + dt);
+                                glEnd();
+
+                                // DIREITA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i + dt, j   + dt, k - dt);
+                                    glVertex3f(i + dt, j+1 - dt, k - dt);
+                                    glVertex3f(i + dt, j+1 - dt, k + dt);
+                                    glVertex3f(i + dt, j   + dt, k + dt);
+                                glEnd();
+
+                                break;
+                            case 3: // FRENTE
+
+                                // CIMA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i - dt, j   + dt, k   + dt);
+                                    glVertex3f(i - dt, j   + dt, k+1 - dt);
+                                    glVertex3f(i + dt, j   + dt, k+1 - dt);
+                                    glVertex3f(i + dt, j   + dt, k   + dt);
+                                glEnd();
+
+                                // ESQUERDA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i - dt, j   + dt, k   + dt);
+                                    glVertex3f(i - dt, j   + dt, k+1 - dt);
+                                    glVertex3f(i - dt, j   - dt, k+1 - dt);
+                                    glVertex3f(i - dt, j   - dt, k   + dt);
+                                glEnd();
+
+                                // BAIXO
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i - dt, j   - dt, k   + dt);
+                                    glVertex3f(i - dt, j   - dt, k+1 - dt);
+                                    glVertex3f(i + dt, j   - dt, k+1 - dt);
+                                    glVertex3f(i + dt, j   - dt, k   + dt);
+                                glEnd();
+
+                                // DIREITA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i + dt, j   + dt, k   + dt);
+                                    glVertex3f(i + dt, j   + dt, k+1 - dt);
+                                    glVertex3f(i + dt, j   - dt, k+1 - dt);
+                                    glVertex3f(i + dt, j   - dt, k   + dt);
+                                glEnd();
+
+                                break;
+                            case 4: // TRAS
+
+                                // CIMA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i - dt, j   + dt, k   - dt);
+                                    glVertex3f(i - dt, j   + dt, k-1 + dt);
+                                    glVertex3f(i + dt, j   + dt, k-1 + dt);
+                                    glVertex3f(i + dt, j   + dt, k   - dt);
+                                glEnd();
+
+                                // ESQUERDA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i - dt, j   + dt, k   - dt);
+                                    glVertex3f(i - dt, j   + dt, k-1 + dt);
+                                    glVertex3f(i - dt, j   - dt, k-1 + dt);
+                                    glVertex3f(i - dt, j   - dt, k   - dt);
+                                glEnd();
+
+                                // BAIXO
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i - dt, j   - dt, k   - dt);
+                                    glVertex3f(i - dt, j   - dt, k-1 + dt);
+                                    glVertex3f(i + dt, j   - dt, k-1 + dt);
+                                    glVertex3f(i + dt, j   - dt, k   - dt);
+                                glEnd();
+
+                                // DIREITA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i + dt, j   + dt, k   - dt);
+                                    glVertex3f(i + dt, j   + dt, k-1 + dt);
+                                    glVertex3f(i + dt, j   - dt, k-1 + dt);
+                                    glVertex3f(i + dt, j   - dt, k   - dt);
+                                glEnd();
+
+                                break;
+                            case 5: // DIREITA
+
+                                // FRENTE
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i   - dt, j + dt, k - dt);
+                                    glVertex3f(i-1 + dt, j + dt, k - dt);
+                                    glVertex3f(i-1 + dt, j - dt, k - dt);
+                                    glVertex3f(i   - dt, j - dt, k - dt);
+                                glEnd();
+
+                                // CIMA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i   - dt, j + dt, k - dt);
+                                    glVertex3f(i-1 + dt, j + dt, k - dt);
+                                    glVertex3f(i-1 + dt, j + dt, k + dt);
+                                    glVertex3f(i   - dt, j + dt, k + dt);
+                                glEnd();
+
+                                // TRAS
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i   - dt, j + dt, k + dt);
+                                    glVertex3f(i-1 + dt, j + dt, k + dt);
+                                    glVertex3f(i-1 + dt, j - dt, k + dt);
+                                    glVertex3f(i   - dt, j - dt, k + dt);
+                                glEnd();
+
+                                // BAIXO
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i   - dt, j - dt, k - dt);
+                                    glVertex3f(i-1 + dt, j - dt, k - dt);
+                                    glVertex3f(i-1 + dt, j - dt, k + dt);
+                                    glVertex3f(i   - dt, j - dt, k + dt);
+                                glEnd();
+
+                                break;
+                            case 6: // ESQUERDA
+
+                                // FRENTE
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i   + dt, j + dt, k - dt);
+                                    glVertex3f(i+1 - dt, j + dt, k - dt);
+                                    glVertex3f(i+1 - dt, j - dt, k - dt);
+                                    glVertex3f(i   + dt, j - dt, k - dt);
+                                glEnd();
+
+                                // CIMA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i   + dt, j + dt, k - dt);
+                                    glVertex3f(i+1 - dt, j + dt, k - dt);
+                                    glVertex3f(i+1 - dt, j + dt, k + dt);
+                                    glVertex3f(i   + dt, j + dt, k + dt);
+                                glEnd();
+
+                                // TRAS
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i   + dt, j + dt, k + dt);
+                                    glVertex3f(i+1 - dt, j + dt, k + dt);
+                                    glVertex3f(i+1 - dt, j - dt, k + dt);
+                                    glVertex3f(i   + dt, j - dt, k + dt);
+                                glEnd();
+
+                                // BAIXO
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glVertex3f(i   + dt, j - dt, k - dt);
+                                    glVertex3f(i+1 - dt, j - dt, k - dt);
+                                    glVertex3f(i+1 - dt, j - dt, k + dt);
+                                    glVertex3f(i   + dt, j - dt, k + dt);
+                                glEnd();
+
+                                break;
+                        }
+
+
+                    }
+
 
 
                 }
@@ -227,66 +500,34 @@ void Pipes::render() {
 }
 
 
-
-void Pipes::tentar_conectar(int x, int y, int z, int numero_cano) {
-
-
-    //TODO: vai desenhar duas vezes por agr
-
-
-    if(this->mundo[x][y][z+1] == numero_cano) {
-
-        glBegin(GL_POLYGON);
-            this->set_cor(numero_cano);
-        glEnd();
-
-        glBegin(GL_POLYGON);
-            this->set_cor(numero_cano);
-        glEnd();
-
-        glBegin(GL_POLYGON);
-            this->set_cor(numero_cano);
-        glEnd();
-
-        glBegin(GL_POLYGON);
-            this->set_cor(numero_cano);
-        glEnd();
-    }
-
-    if(this->mundo[x][y][z-1] == numero_cano) {}
-
-    if(this->mundo[x][y+1][z] == numero_cano) {}
-
-    if(this->mundo[x][y-1][z] == numero_cano) {}
-
-    if(this->mundo[x+1][y][z] == numero_cano) {}
-
-    if(this->mundo[x-1][y][z] == numero_cano) {}
-
-
-
-
-
-}
-
-
-
 void Pipes::set_cor(int cor) {
-
 
     glColor3b(2, 2, 2);
     switch(cor) {
         case 1:
-            glColor3b(1/2, 168/2, 188/2);
+            glColor3ub(1, 168, 188);
             break;
         case 2:
-            glColor3b(61/2, 52/2, 169/2);
+            glColor3ub(61, 52, 169);
             break;
         case 3:
-            glColor3b(177/2, 72/2, 41/2);
+            glColor3ub(177, 72, 41);
+            break;
+        case 4:
+            glColor3ub(16, 43, 126);
+            break;
+        case 5:
+            glColor3ub(110, 31, 37);
+            break;
+        case 6:
+            glColor3ub(140, 108, 23);
+            break;
+        case 7:
+            glColor3ub(27, 99, 35);
+            break;
+        case 8:
+            glColor3ub(118, 52, 100);
             break;
     }
-
-
 
 }

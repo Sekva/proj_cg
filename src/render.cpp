@@ -30,7 +30,7 @@ Render::Render(int a) {
     this->dt = 0;
     this->ut = 0;
 
-    this->pipes = new Pipes(1, 15);
+    this->pipes = new Pipes(8, 45);
 
 
 }
@@ -214,7 +214,7 @@ void Render::display() {
 
         glMatrixMode(GL_PROJECTION_MATRIX);
         glLoadIdentity();
-        gluPerspective(this->fov, this->largura / this->altura, 0.1, 100 );
+        gluPerspective(this->fov, this->largura / this->altura, 0.1, 200 );
 
 
         if(luzes) {
@@ -246,6 +246,7 @@ void Render::display() {
         //DESENHA AQUI
         //==========================================
 
+        //Triangulo rodando
         glPushMatrix();
         glRotatef(alpha, 0, 1, 0);
         alpha += 0.1;
@@ -253,24 +254,27 @@ void Render::display() {
         glBegin(GL_TRIANGLES);
             glColor3b(120, 120, 0);
 
-            glVertex3f(  0, 1, -7 );
-            glVertex3f( -1, 0, -7 );
-            glVertex3f(  1, 0, -7 );
+            glVertex3f(  0, 1, -10 );
+            glVertex3f( -1, 0, -10 );
+            glVertex3f(  1, 0, -10 );
         glEnd();
 
         glPopMatrix();
 
+        // Triangulo parado
         glBegin(GL_TRIANGLES);
             glColor3b(120, 120, 0);
 
-            glVertex3f(  0, 1, -5 );
-            glVertex3f( -1, 0, -5 );
-            glVertex3f(  1, 0, -5 );
+            glVertex3f(  0, 1, -8 );
+            glVertex3f( -1, 0, -8 );
+            glVertex3f(  1, 0, -8 );
         glEnd();
 
 
+        // PIPEEEEEEES
         glPushMatrix();
             glTranslatef(0, 20, 0);
+            //glScalef(.1, .1, .1);
             this->pipes->att();
             this->pipes->render();
         glPopMatrix();
@@ -290,65 +294,6 @@ void Render::display() {
         glVertex3f( -50, -5, -50 );
         glEnd();
         glPopMatrix();
-        //==========================================
-
-/*
-        //Multi-colored side - FRONT
-        glBegin(GL_POLYGON);
-
-        glVertex3f(  0.5, -0.5, -0.5 );      // P1 is red
-        glVertex3f(  0.5,  0.5, -0.5 );      // P2 is green
-        glVertex3f( -0.5,  0.5, -0.5 );      // P3 is blue
-        glVertex3f( -0.5, -0.5, -0.5 );      // P4 is purple
-
-        glEnd();
-
-        // White side - BACK
-        glBegin(GL_POLYGON);
-        glColor3f(   1.0,  1.0, 1.0 );
-        glVertex3f(  0.5, -0.5, 0.5 );
-        glVertex3f(  0.5,  0.5, 0.5 );
-        glVertex3f( -0.5,  0.5, 0.5 );
-        glVertex3f( -0.5, -0.5, 0.5 );
-        glEnd();
-
-        // Purple side - RIGHT
-        glBegin(GL_POLYGON);
-        glColor3f(  1.0,  0.0,  1.0 );
-        glVertex3f( 0.5, -0.5, -0.5 );
-        glVertex3f( 0.5,  0.5, -0.5 );
-        glVertex3f( 0.5,  0.5,  0.5 );
-        glVertex3f( 0.5, -0.5,  0.5 );
-        glEnd();
-
-       // Green side - LEFT
-        glBegin(GL_POLYGON);
-        glColor3f(   0.0,  1.0,  0.0 );
-        glVertex3f( -0.5, -0.5,  0.5 );
-        glVertex3f( -0.5,  0.5,  0.5 );
-        glVertex3f( -0.5,  0.5, -0.5 );
-        glVertex3f( -0.5, -0.5, -0.5 );
-        glEnd();
-
-        // Blue side - TOP
-        glBegin(GL_POLYGON);
-        glColor3f(   0.0,  0.0,  1.0 );
-        glVertex3f(  0.5,  0.5,  0.5 );
-        glVertex3f(  0.5,  0.5, -0.5 );
-        glVertex3f( -0.5,  0.5, -0.5 );
-        glVertex3f( -0.5,  0.5,  0.5 );
-        glEnd();
-
-        // Red side - BOTTOM
-        glBegin(GL_POLYGON);
-        glColor3f(   1.0,  0.0,  0.0 );
-        glVertex3f(  0.5, -0.5, -0.5 );
-        glVertex3f(  0.5, -0.5,  0.5 );
-        glVertex3f( -0.5, -0.5,  0.5 );
-        glVertex3f( -0.5, -0.5, -0.5 );
-        glEnd();
-*/
-
 
 
         //==========================================
