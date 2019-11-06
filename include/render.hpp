@@ -6,10 +6,7 @@
 #include <GL/glx.h>
 #include <X11/Xlib.h>
 #include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
 #include <GL/glu.h>
-#include <glm/ext/vector_float3.hpp>
-#include <glm/geometric.hpp>
 #include <GL/glut.h>
 
 

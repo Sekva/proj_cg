@@ -15,7 +15,7 @@
     #define vel_att 110
 #endif
 
-#define espera_att 2500
+#define espera_att 250
 
 
 int random(int min, int max) {
