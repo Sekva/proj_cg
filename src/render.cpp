@@ -2,7 +2,8 @@
 
 #define luzes false
 
-
+double var_tamanho = 0.1;
+double var_escala = 0.1;
 
 double radianos(double graus) {
     return (3.141592653589793 * graus) / 180.0;
@@ -125,6 +126,21 @@ void Render::mouse_update() {
 void Render::teclado_update() {
 
 
+    if(glfwGetKey(this->janela, GLFW_KEY_I) == GLFW_PRESS) {
+        var_tamanho += 0.01;
+    }
+    if(glfwGetKey(this->janela, GLFW_KEY_U) == GLFW_PRESS) {
+        if(var_tamanho > 0)
+            var_tamanho -= 0.01;
+    }
+
+    if(glfwGetKey(this->janela, GLFW_KEY_K) == GLFW_PRESS) {
+        var_escala += 0.01;
+    }
+    if(glfwGetKey(this->janela, GLFW_KEY_J) == GLFW_PRESS) {
+        var_escala -= 0.01;
+    }
+
     if(glfwGetKey(this->janela, GLFW_KEY_P) == GLFW_PRESS) {
 
         if(this->fov >= 1 && this->fov <= 60) {
@@ -146,9 +162,13 @@ void Render::teclado_update() {
 
     }
 
-
-
     double vel = 6.5 * this->dt;
+
+    if(glfwGetKey(this->janela, GLFW_KEY_LEFT_CONTROL ) == GLFW_PRESS) {
+        vel = 0.25 * this->dt;
+    }
+
+
 
     if(glfwGetKey(this->janela, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
         glfwSetWindowShouldClose(this->janela, true);
@@ -291,10 +311,10 @@ void Render::display() {
 
         // PIPEEEEEEES
         glPushMatrix();
-            glTranslatef(0, 20, 0);
-            //glScalef(.1, .1, .1);
+            //glTranslatef(0, 10, 0);
+            glScalef(var_escala, var_escala, var_escala);
             this->pipes->att();
-            this->pipes->render();
+            this->pipes->render(var_tamanho);
         glPopMatrix();
 
 

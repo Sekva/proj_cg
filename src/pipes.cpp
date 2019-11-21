@@ -97,7 +97,7 @@ void Pipes::att() {
     if (this->contador < espera_att|| this->contador % vel_att != 0) { return; }
 
 
-    if(random(1, 10000)< 10) { this->resetar(); return; }
+//    if(random(1, 10000) == 10) { this->resetar(); return; }
 
 
 
@@ -175,7 +175,7 @@ void Pipes::att() {
 }
 
 
-void Pipes::render() {
+void Pipes::render(double var_tamanho) {
 
 
 #ifdef textura
@@ -222,7 +222,7 @@ void Pipes::render() {
                 int num_cano = this->mundo[i][j][k];
                 if(num_cano != 0) {
 
-                    double dt = this->tamanho_cubo;
+                    double dt = var_tamanho;
                     //goto liga;
                     // FRONT
                     glBegin(GL_POLYGON);
@@ -285,7 +285,7 @@ void Pipes::render() {
                     glEnd();
 liga:
                     //TODO: passar pra uma função a parte
-                    if(this->conectar) {
+                    if(this->conectar && !(var_tamanho > 0.5)) {
 
                         int dir = this->memoria[i][j][k];
                         if (dir == 0) { continue; }

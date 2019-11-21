@@ -70,7 +70,7 @@ class Pipes {
         Pipes(int num_pipes, int dim);
 
         void att();
-        void render();
+        void render(double var_tamanho);
         void resetar();
         void set_cor(int in);
 
