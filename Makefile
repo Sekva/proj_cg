@@ -23,7 +23,7 @@ BIN = $(BUILD_DIR)$(BIN_NOME)
 all : $(BIN)
 
 $(BIN) : $(OBJS_FINAL)
-	$(CXX) $(OBJS_FINAL) -o $(BIN) $(LIBFLAGS)
+	$(CXX) $(OBJS_FINAL) ./objs/libSOIL.a -o $(BIN) $(LIBFLAGS)
 
 $(OBJS_FINAL) : $(OBJETOS_DIR)%.o : $(SRC_DIR)%.cpp
 	$(CXX) -c $< -o $@

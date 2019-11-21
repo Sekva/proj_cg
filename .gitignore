@@ -1,2 +1,5 @@
-build/*
-objs/*
+build/wow
+objs/main.o
+objs/pipes.o
+objs/render.o
+objs/solido.o

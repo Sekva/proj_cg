@@ -52,6 +52,20 @@ class Pipes {
         double tamanho_cubo;
         bool conectar;
 
+        GLuint cubo_text;
+        int cubo_x;
+        int cubo_y;
+        GLuint ligamento_text;
+        int ligamento_x;
+        int ligamento_y;
+
+        unsigned char* cubo_image;
+        unsigned char* ligamento_image;
+
+        bool textura_carregada;
+
+
+
     public:
         Pipes(int num_pipes, int dim);
 

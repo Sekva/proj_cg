@@ -237,9 +237,7 @@ void Render::display() {
 
         if(luzes) {
             //TODO: consertar luzes
-            GLfloat light_position[] = { 0, 5.0, 0, 1 };
-            glLoadIdentity();
-            glLightfv (GL_LIGHT0, GL_POSITION, light_position);
+            this->init_luzes();
 
         }
 
@@ -272,6 +270,7 @@ void Render::display() {
         glBegin(GL_TRIANGLES);
             glColor3b(120, 120, 0);
 
+            glNormal3f(0.0f, 0.0f, 1.0f);
             glVertex3f(  0, 1, -10 );
             glVertex3f( -1, 0, -10 );
             glVertex3f(  1, 0, -10 );
@@ -283,6 +282,7 @@ void Render::display() {
         glBegin(GL_TRIANGLES);
             glColor3b(120, 120, 0);
 
+            glNormal3f(0.0f, 0.0f, 1.0f);
             glVertex3f(  0, 1, -8 );
             glVertex3f( -1, 0, -8 );
             glVertex3f(  1, 0, -8 );
@@ -305,7 +305,7 @@ void Render::display() {
         glPushMatrix();
         glBegin(GL_POLYGON);
             glColor3b(51, 51, 51);
-
+            glNormal3f(0.0f, 1.0f, 0.0f);
             glVertex3f(  50, -5, -50 );
             glVertex3f(  50, -5,  50 );
             glVertex3f( -50, -5,  50 );
@@ -365,13 +365,40 @@ void Render::init() {
 
 void Render::init_luzes() {
 
-    glEnable (GL_LIGHTING);
-    glEnable (GL_LIGHT0);
-    glMatrixMode (GL_PROJECTION);
-    glLoadIdentity();
-    glFrustum(-1.0, 1.0, -1.0, 1.0, 1.5, 100);
-    glMatrixMode (GL_MODELVIEW);
-    glLoadIdentity();
+GLfloat luzAmbiente[4]={0.2,0.2,0.2,1.0};
+ GLfloat luzDifusa[4]={0.7,0.7,0.7,1.0};    // "cor"
+ GLfloat luzEspecular[4]={1.0, 1.0, 1.0, 1.0};// "brilho"
+ GLfloat posicaoLuz[4]={0.0, 50.0, 0.0, 1.0};
+
+ // Capacidade de brilho do material
+ GLfloat especularidade[4]={1.0,1.0,1.0,1.0};
+ GLint especMaterial = 60;
+
+
+ // Habilita o modelo de colorização de Gouraud
+ glShadeModel(GL_SMOOTH);
+
+ // Define a refletância do material 
+ glMaterialfv(GL_FRONT,GL_SPECULAR, especularidade);
+ // Define a concentração do brilho
+ glMateriali(GL_FRONT,GL_SHININESS,especMaterial);
+
+ // Ativa o uso da luz ambiente 
+ glLightModelfv(GL_LIGHT_MODEL_AMBIENT, luzAmbiente);
+
+ // Define os parâmetros da luz de número 0
+ glLightfv(GL_LIGHT0, GL_AMBIENT, luzAmbiente); 
+ glLightfv(GL_LIGHT0, GL_DIFFUSE, luzDifusa );
+ glLightfv(GL_LIGHT0, GL_SPECULAR, luzEspecular );
+ glLightfv(GL_LIGHT0, GL_POSITION, posicaoLuz );
+
+ // Habilita a definição da cor do material a partir da cor corrente
+ glEnable(GL_COLOR_MATERIAL);
+ //Habilita o uso de iluminação
+ glEnable(GL_LIGHTING);
+ // Habilita a luz de número 0
+ glEnable(GL_LIGHT0);
+
 
 
 }
