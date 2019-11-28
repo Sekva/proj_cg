@@ -1,4 +1,4 @@
-LIBFLAGS = -g -O0 -Wall -lglut -lGL -lGLU -lGLEW -lm -lglfw -lGL -lX11 -lpthread -lXrandr -lXi -ldl
+LIBFLAGS = -g -O0 -Wall -lGL -lGLU -lm -lglfw
 CXX = clang++
 
 SRC_DIR = ./src/

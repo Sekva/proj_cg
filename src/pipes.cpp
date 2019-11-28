@@ -175,12 +175,12 @@ void Pipes::att() {
 }
 
 
-void Pipes::render(double var_tamanho) {
+void Pipes::render(double var_tamanho, bool usa_textura) {
 
 
 #ifdef textura
 
-   if(!this->textura_carregada) {
+   if(!this->textura_carregada && usa_textura) {
 
 
        this->cubo_image = SOIL_load_image("cubo.png", &this->cubo_x, &this->cubo_y, 0, SOIL_LOAD_RGB);
@@ -207,11 +207,12 @@ void Pipes::render(double var_tamanho) {
    }
 
 
-
-   glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
-   glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-   glEnable(GL_TEXTURE_2D);
-   glBindTexture(GL_TEXTURE_2D, this->cubo_text);
+   if(usa_textura) {
+       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+       glEnable(GL_TEXTURE_2D);
+       glBindTexture(GL_TEXTURE_2D, this->cubo_text);
+   }
 
 #endif
 
@@ -291,10 +292,12 @@ liga:
                         if (dir == 0) { continue; }
 
 #ifdef textura
-                        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
-                        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-                        glEnable(GL_TEXTURE_2D);
-                        glBindTexture(GL_TEXTURE_2D, this->ligamento_text);
+                        if(usa_textura) {
+                            glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+                            glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+                            glEnable(GL_TEXTURE_2D);
+                            glBindTexture(GL_TEXTURE_2D, this->ligamento_text);
+                        }
 #endif
 
 
@@ -536,10 +539,12 @@ liga:
                         }
 
 #ifdef textura
-                            glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
-                            glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-                            glEnable(GL_TEXTURE_2D);
-                            glBindTexture(GL_TEXTURE_2D, this->cubo_text);
+                            if(usa_textura) {
+                                glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+                                glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+                                glEnable(GL_TEXTURE_2D);
+                                glBindTexture(GL_TEXTURE_2D, this->cubo_text);
+                            }
 #endif
                     }
 

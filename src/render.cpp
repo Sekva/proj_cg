@@ -5,6 +5,8 @@
 double var_tamanho = 0.1;
 double var_escala = 0.1;
 
+bool usa_textura = true;
+
 double radianos(double graus) {
     return (3.141592653589793 * graus) / 180.0;
 }
@@ -125,6 +127,9 @@ void Render::mouse_update() {
 
 void Render::teclado_update() {
 
+    if(glfwGetKey(this->janela, GLFW_KEY_T) == GLFW_PRESS) {
+        usa_textura  = !usa_textura;
+    }
 
     if(glfwGetKey(this->janela, GLFW_KEY_I) == GLFW_PRESS) {
         var_tamanho += 0.01;
@@ -314,7 +319,7 @@ void Render::display() {
             //glTranslatef(0, 10, 0);
             glScalef(var_escala, var_escala, var_escala);
             this->pipes->att();
-            this->pipes->render(var_tamanho);
+            this->pipes->render(var_tamanho, usa_textura);
         glPopMatrix();
 
 
