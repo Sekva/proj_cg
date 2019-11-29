@@ -1,0 +1,1256 @@
+############### main.cpp ###############
+
+
+
+#include <iostream>
+#include "../include/render.hpp"
+#include "../include/pipes.hpp"
+
+int main() {
+
+
+    Render* r = new Render(1);
+    r->render();
+
+
+    return 0;
+}
+
+
+
+
+
+########################################
+########################################
+########################################
+############### render.hpp ###############
+
+
+#ifndef RENDER_HPP
+#define RENDER_HPP
+
+#define GLEW_STATIC
+#include <GL/glew.h>
+#include <GL/glx.h>
+#include <X11/Xlib.h>
+#include <GLFW/glfw3.h>
+#include <GL/glu.h>
+#include <GL/glut.h>
+
+
+
+#include <iostream>
+#include <vector>
+#include <fstream>
+#include <sstream>
+#include <iterator>
+#include <cmath>
+
+#include "../include/solido.hpp"
+#define STB_IMAGE_IMPLEMENTATION
+//#include "../include/stb_image.h"
+
+#include "../include/pipes.hpp"
+
+
+
+class Render {
+
+
+    private:
+        GLFWwindow* janela;
+        std::vector<Objeto*> objetos;
+        double pos[3];
+        double camera_up[3];
+        double look_at[3];
+        int largura;
+        int altura;
+
+        Pipes* pipes;
+
+
+
+
+        double pitch;
+        double yaw;
+
+        double fov;
+
+        bool primeiro_mouse;
+
+        double ultimo_mouse_x;
+        double ultimo_mouse_y;
+        double dt;
+        double ut;
+
+    private:
+        void init();
+        void reshape();
+        void display();
+        void mouse_update();
+        void teclado_update();
+        void att_entrada();
+        void clear();
+
+        void init_luzes();
+
+
+
+    public:
+        Render(int a);
+
+        void add_obj(Objeto* o);
+        void render();
+
+};
+
+
+#endif
+
+
+
+########################################
+########################################
+########################################
+############### render.cpp ###############
+
+
+
+#include "../include/render.hpp"
+
+#define luzes false
+
+double var_tamanho = 0.1;
+double var_escala = 0.1;
+
+bool usa_textura = true;
+
+double radianos(double graus) {
+    return (3.141592653589793 * graus) / 180.0;
+}
+
+
+double norma(double vetor[3]) {
+    return sqrt(vetor[0]*vetor[0] + vetor[1]*vetor[1] + vetor[2]*vetor[2]);
+}
+
+
+double* produto_cruzado(double a[3], double b[3]) {
+    double* r = (double*) malloc(sizeof(double) * 3);
+
+    r[0] = a[1]*b[2] - a[2]*b[1];
+    r[1] = a[2]*b[0] - a[0]*b[2];
+    r[2] = a[0]*b[1] - a[1]*b[0];
+
+    return r;
+}
+
+Render::Render(int a) {
+
+    this->pos[0] = 0;
+    this->pos[1] = 0;
+    this->pos[2] = 0;
+
+    this->look_at[0] = 0;
+    this->look_at[1] = 0;
+    this->look_at[2] = -1;
+
+    this->camera_up[0] = 0;
+    this->camera_up[1] = 1;
+    this->camera_up[2] = 0;
+
+    this->fov = 60;
+
+    this->pitch = 0.0;
+    this->yaw = -90.0;
+
+    this->primeiro_mouse = true;
+
+    this->ultimo_mouse_x = 800 / 2;
+    this->ultimo_mouse_y = 600 / 2;
+
+    this->dt = 0;
+    this->ut = 0;
+
+    this->pipes = new Pipes(8, 45);
+
+
+}
+
+
+void Render::reshape() {
+
+        glfwGetWindowSize(this->janela, &this->largura, &this->altura);
+        //TODO: testar os valores
+        glViewport(0, 0, this->largura, this->altura);
+
+}
+
+
+void Render::att_entrada() {
+
+
+    double tempo_atual = glfwGetTime();
+    this->dt = tempo_atual - this->ut;
+    this->ut = tempo_atual;
+
+    this->teclado_update();
+    this->mouse_update();
+
+}
+
+void Render::mouse_update() {
+
+    double xpos, ypos;
+    glfwGetCursorPos(this->janela, &xpos, &ypos);
+
+    if(this->primeiro_mouse) {
+        this->primeiro_mouse = false;
+        this->ultimo_mouse_x = xpos;
+        this->ultimo_mouse_y = ypos;
+    }
+
+
+
+    double xoff = xpos - this->ultimo_mouse_x;
+    double yoff = this->ultimo_mouse_y - ypos;
+
+    this->ultimo_mouse_x = xpos;
+    this->ultimo_mouse_y = ypos;
+
+
+    // essa scl tem q ser proporcional ao fov
+    int scl = 10;
+
+    this->yaw += xoff / scl;
+    this->pitch+= yoff / scl;
+
+    this->pitch = this->pitch >  89 ?  89 : this->pitch;
+    this->pitch = this->pitch < -89 ? -89 : this->pitch;
+
+    double v_npos[3];
+
+    v_npos[0] = cos(radianos(this->yaw)) * cos(radianos(this->pitch));
+    v_npos[1] = sin(radianos(this->pitch));
+    v_npos[2] = sin(radianos(this->yaw)) * cos(radianos(this->pitch));
+
+    double val_norma = norma(v_npos);
+
+    this->look_at[0] = v_npos[0] / val_norma;
+    this->look_at[1] = v_npos[1] / val_norma;
+    this->look_at[2] = v_npos[2] / val_norma;
+
+}
+
+
+void Render::teclado_update() {
+
+    if(glfwGetKey(this->janela, GLFW_KEY_T) == GLFW_PRESS) {
+        usa_textura  = !usa_textura;
+    }
+
+    if(glfwGetKey(this->janela, GLFW_KEY_I) == GLFW_PRESS) {
+        var_tamanho += 0.01;
+    }
+    if(glfwGetKey(this->janela, GLFW_KEY_U) == GLFW_PRESS) {
+        if(var_tamanho > 0)
+            var_tamanho -= 0.01;
+    }
+
+    if(glfwGetKey(this->janela, GLFW_KEY_K) == GLFW_PRESS) {
+        var_escala += 0.01;
+    }
+    if(glfwGetKey(this->janela, GLFW_KEY_J) == GLFW_PRESS) {
+        var_escala -= 0.01;
+    }
+
+    if(glfwGetKey(this->janela, GLFW_KEY_P) == GLFW_PRESS) {
+
+        if(this->fov >= 1 && this->fov <= 60) {
+            this->fov -= 0.1;
+        }
+
+        if(this->fov < 1) { this->fov = 1; }
+        if(this->fov > 60) { this->fov = 60; }
+
+    }
+
+    if(glfwGetKey(this->janela, GLFW_KEY_O) == GLFW_PRESS) {
+        if(this->fov >= 1 && this->fov <= 60) {
+            this->fov += 0.1;
+        }
+
+        if(this->fov < 1) { this->fov = 1; }
+        if(this->fov > 60) { this->fov = 60; }
+
+    }
+
+    double vel = 6.5 * this->dt;
+
+    if(glfwGetKey(this->janela, GLFW_KEY_LEFT_CONTROL ) == GLFW_PRESS) {
+        vel = 0.25 * this->dt;
+    }
+
+
+
+    if(glfwGetKey(this->janela, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+        glfwSetWindowShouldClose(this->janela, true);
+    }
+
+    if(glfwGetKey(this->janela, GLFW_KEY_W) == GLFW_PRESS) {
+        this->pos[0] += vel * this->look_at[0];
+        this->pos[1] += vel * this->look_at[1];
+        this->pos[2] += vel * this->look_at[2];
+    }
+
+    if(glfwGetKey(this->janela, GLFW_KEY_S) == GLFW_PRESS) {
+        this->pos[0] -= vel * this->look_at[0];
+        this->pos[1] -= vel * this->look_at[1];
+        this->pos[2] -= vel * this->look_at[2];
+    }
+
+    if(glfwGetKey(this->janela, GLFW_KEY_A) == GLFW_PRESS) {
+
+        double rr[3];
+        rr[0] = this->look_at[0];
+        rr[1] = this->look_at[1];
+        rr[2] = this->look_at[2];
+
+        double* cruzado = produto_cruzado(rr, this->camera_up);
+        double val_norma = norma(cruzado);
+
+        this->pos[0] -= (cruzado[0] / val_norma) * vel;
+        this->pos[1] -= (cruzado[1] / val_norma) * vel;
+        this->pos[2] -= (cruzado[2] / val_norma) * vel;
+
+    }
+
+    if(glfwGetKey(this->janela, GLFW_KEY_D) == GLFW_PRESS) {
+
+        double rr[3];
+        rr[0] = this->look_at[0];
+        rr[1] = this->look_at[1];
+        rr[2] = this->look_at[2];
+
+        double* cruzado = produto_cruzado(rr, this->camera_up);
+        double val_norma = norma(cruzado);
+
+        this->pos[0] += (cruzado[0] / val_norma) * vel;
+        this->pos[1] += (cruzado[1] / val_norma) * vel;
+        this->pos[2] += (cruzado[2] / val_norma) * vel;
+
+    }
+
+    if(glfwGetKey(this->janela, GLFW_KEY_SPACE) == GLFW_PRESS) {
+        this->pos[1] += vel; //y
+    }
+
+    if(glfwGetKey(this->janela, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+        this->pos[1] -= vel; //y
+    }
+
+
+}
+
+
+void Render::clear() {
+
+        glClearColor(0.0, 0.1, 0.1, 1.0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+}
+
+
+void Render::display() {
+
+    static float alpha = 0;
+
+
+    while (!glfwWindowShouldClose(this->janela)) {
+        this->att_entrada();
+
+        this->reshape();
+
+        this->clear();
+
+        glMatrixMode(GL_PROJECTION_MATRIX);
+        glLoadIdentity();
+        gluPerspective(this->fov, this->largura / this->altura, 0.1, 200 );
+
+
+        if(luzes) {
+            //TODO: consertar luzes
+            this->init_luzes();
+
+        }
+
+
+        gluLookAt(
+                this->pos[0],
+                this->pos[1],
+                this->pos[2],
+
+                this->pos[0] + this->look_at[0],
+                this->pos[1] + this->look_at[1],
+                this->pos[2] + this->look_at[2],
+
+                this->camera_up[0],
+                this->camera_up[1],
+                this->camera_up[2]
+                );
+
+        glMatrixMode(GL_MODELVIEW_MATRIX);
+
+
+        //DESENHA AQUI
+        //==========================================
+
+        //Triangulo rodando
+        glPushMatrix();
+        glRotatef(alpha, 0, 1, 0);
+        alpha += 0.1;
+
+        glBegin(GL_TRIANGLES);
+            glColor3b(120, 120, 0);
+
+            glNormal3f(0.0f, 0.0f, 1.0f);
+            glVertex3f(  0, 1, -10 );
+            glVertex3f( -1, 0, -10 );
+            glVertex3f(  1, 0, -10 );
+        glEnd();
+
+        glPopMatrix();
+
+        // Triangulo parado
+        glBegin(GL_TRIANGLES);
+            glColor3b(120, 120, 0);
+
+            glNormal3f(0.0f, 0.0f, 1.0f);
+            glVertex3f(  0, 1, -8 );
+            glVertex3f( -1, 0, -8 );
+            glVertex3f(  1, 0, -8 );
+        glEnd();
+
+
+        // PIPEEEEEEES
+        glPushMatrix();
+            //glTranslatef(0, 10, 0);
+            glScalef(var_escala, var_escala, var_escala);
+            this->pipes->att();
+            this->pipes->render(var_tamanho, usa_textura);
+        glPopMatrix();
+
+
+
+        // Chão
+        //------------------------------------------
+
+        glPushMatrix();
+        glBegin(GL_POLYGON);
+            glColor3b(51, 51, 51);
+            glNormal3f(0.0f, 1.0f, 0.0f);
+            glVertex3f(  50, -5, -50 );
+            glVertex3f(  50, -5,  50 );
+            glVertex3f( -50, -5,  50 );
+            glVertex3f( -50, -5, -50 );
+        glEnd();
+        glPopMatrix();
+
+
+        //==========================================
+        //==========================================
+        //==========================================
+
+
+        glFlush();
+        glfwSwapBuffers(this->janela);
+        glfwPollEvents();
+    }
+    glfwTerminate();
+
+}
+
+
+void Render::init() {
+
+    glfwInit();
+    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+
+
+    this->janela = glfwCreateWindow(800, 600, "Alooo", nullptr, nullptr);
+
+    if (this->janela == nullptr) {
+        std::cout << "Falhou para abrir janela GLFW" << std::endl;
+        glfwTerminate();
+        exit(1);
+    }
+
+    glfwSetInputMode(this->janela, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    glfwMakeContextCurrent(this->janela);
+
+    glClearColor (0.0, 0.0, 0.0, 0.0);
+
+    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+
+    if(luzes) {
+        this->init_luzes();
+    }
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glDisable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+
+
+}
+
+
+void Render::init_luzes() {
+
+GLfloat luzAmbiente[4]={0.2,0.2,0.2,1.0};
+ GLfloat luzDifusa[4]={0.7,0.7,0.7,1.0};    // "cor"
+ GLfloat luzEspecular[4]={1.0, 1.0, 1.0, 1.0};// "brilho"
+ GLfloat posicaoLuz[4]={0.0, 50.0, 0.0, 1.0};
+
+ // Capacidade de brilho do material
+ GLfloat especularidade[4]={1.0,1.0,1.0,1.0};
+ GLint especMaterial = 60;
+
+
+ // Habilita o modelo de colorização de Gouraud
+ glShadeModel(GL_SMOOTH);
+
+ // Define a refletância do material
+ glMaterialfv(GL_FRONT,GL_SPECULAR, especularidade);
+ // Define a concentração do brilho
+ glMateriali(GL_FRONT,GL_SHININESS,especMaterial);
+
+ // Ativa o uso da luz ambiente
+ glLightModelfv(GL_LIGHT_MODEL_AMBIENT, luzAmbiente);
+
+ // Define os parâmetros da luz de número 0
+ glLightfv(GL_LIGHT0, GL_AMBIENT, luzAmbiente);
+ glLightfv(GL_LIGHT0, GL_DIFFUSE, luzDifusa );
+ glLightfv(GL_LIGHT0, GL_SPECULAR, luzEspecular );
+ glLightfv(GL_LIGHT0, GL_POSITION, posicaoLuz );
+
+ // Habilita a definição da cor do material a partir da cor corrente
+ glEnable(GL_COLOR_MATERIAL);
+ //Habilita o uso de iluminação
+ glEnable(GL_LIGHTING);
+ // Habilita a luz de número 0
+ glEnable(GL_LIGHT0);
+
+
+
+}
+
+
+void Render::add_obj(Objeto* o) {
+
+    this->objetos.push_back(o);
+
+}
+
+
+void Render::render() {
+
+    this->init();
+    this->display();
+
+}
+
+
+########################################
+########################################
+########################################
+############### pipes.hpp ###############
+
+
+
+
+#ifndef PIPES_H
+#define PIPES_H
+#include <vector>
+#define cubo_vec std::vector<std::vector<std::vector<int>>>
+
+#include <cmath>
+#include <vector>
+#include <random>
+#include <chrono>
+#include <thread>
+
+#include <GL/glew.h>
+#include <GL/glx.h>
+#include <X11/Xlib.h>
+#include <GLFW/glfw3.h>
+#include <GL/glu.h>
+#include <GL/glut.h>
+
+
+
+
+enum DIR {
+    CIMA = 1,
+    BAIXO = 2,
+    FRENTE = 3,
+    TRAS = 4,
+    DIREITA = 5,
+    ESQUERDA = 6,
+};
+
+
+struct ponto {
+    int x;
+    int y;
+    int z;
+};
+
+
+#include <vector>
+
+class Pipes {
+
+
+
+    private:
+        cubo_vec mundo;
+        cubo_vec memoria;
+        std::vector<ponto> pos;
+        unsigned long contador;
+        char num_pipes;
+        int dim;
+        double tamanho_cubo;
+        bool conectar;
+
+        GLuint cubo_text;
+        int cubo_x;
+        int cubo_y;
+        GLuint ligamento_text;
+        int ligamento_x;
+        int ligamento_y;
+
+        unsigned char* cubo_image;
+        unsigned char* ligamento_image;
+
+        bool textura_carregada;
+
+
+
+    public:
+        Pipes(int num_pipes, int dim);
+
+        void att();
+        void render(double var_tamanho, bool usa_textura);
+        void resetar();
+        void set_cor(int in);
+
+
+};
+
+
+
+
+#endif
+
+
+
+########################################
+########################################
+########################################
+############### pipes.cpp ###############
+
+
+#include "../include/pipes.hpp"
+#include <iostream>
+
+#include "../include/SOIL.h"
+
+#define dir_min CIMA
+#define dir_max ESQUERDA
+
+#define textura
+
+#define rand_att
+
+#ifdef rand_att
+    #define vel_att 1
+#else
+    #define vel_att 110
+#endif
+
+#define espera_att 250
+
+int random(int min, int max) {
+    std::mt19937_64 rng;
+    uint64_t timeSeed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    std::seed_seq ss{uint32_t(timeSeed & 0xffffffff), uint32_t(timeSeed>>32)};
+    rng.seed(ss);
+    std::uniform_int_distribution<int> unif(min, max);
+    return unif(rng);
+}
+
+Pipes::Pipes(int num_pipes, int dim) {
+
+    this->contador = 0;
+    this->num_pipes = num_pipes;
+    this->dim = dim;
+
+    this->conectar = true; // conectar cubos
+
+    this->tamanho_cubo = 0.1;
+
+    this->pos.reserve(num_pipes);
+
+    this->mundo.reserve(this->dim);
+    this->memoria.reserve(this->dim);
+
+    for(int i = 0; i < this->dim; i++) {
+        this->mundo[i].reserve(this->dim);
+        this->memoria[i].reserve(this->dim);
+        for(int j = 0; j < this->dim; j++) {
+            this->mundo[i][j].reserve(this->dim);
+            this->memoria[i][j].reserve(this->dim);
+        }
+    }
+
+    this->resetar();
+
+    this->textura_carregada = false;
+
+}
+
+void Pipes::resetar() {
+
+    for(int i = 0; i < this->dim; i++) {
+        for(int j = 0; j < this->dim; j++) {
+            for(int k = 0; k < this->dim; k++) {
+                this->mundo[i][j][k] = 0;
+                this->memoria[i][j][k] = 0;
+            }
+        }
+    }
+
+
+
+    for(int i = 1; i <= this->num_pipes; i++) {
+
+        // Procurando um espaço vago
+        bool vago = false;
+        while(!vago) {
+
+            //Gerando posições aleatorias
+            this->pos[i-1].x = random(0, this->dim-1);
+            this->pos[i-1].y = random(0, this->dim-1);
+            this->pos[i-1].z = random(0, this->dim-1);
+
+            if(this->mundo[this->pos[i-1].x][this->pos[i-1].y][this->pos[i-1].z] == 0) {
+                vago = true;
+            }
+
+        }
+        //Setando o primeiro cubo
+        this->mundo[this->pos[i-1].x][this->pos[i-1].y][this->pos[i-1].z] = i;
+    }
+
+}
+
+void Pipes::att() {
+    this->contador++;
+    if (this->contador < espera_att|| this->contador % vel_att != 0) { return; }
+
+
+//    if(random(1, 10000) == 10) { this->resetar(); return; }
+
+
+
+    //TODO: otimizar se pode andar, por bool?
+
+#ifdef rand_att
+    int i = random(0, this->num_pipes - 1);
+#else
+    for(int i = 0; i < this->num_pipes; i++) {
+#endif
+        double x = this->pos[i].x;
+        double y = this->pos[i].y;
+        double z = this->pos[i].z;
+
+
+        // procurar uma direção
+        for(int j = 0; j < dir_max; j++) {
+
+            int dir = random(1, 6);
+
+            double nx = x;
+            double ny = y;
+            double nz = z;
+
+            switch(dir) {
+                case 1: // CIMA
+                    ny += 1;
+                    goto dir_set;
+                case 2: // BAIXO
+                    ny -= 1;
+                    goto dir_set;
+                case 3: // FRENTE
+                    nz -= 1;
+                    goto dir_set;
+                case 4: // TRAS
+                    nz += 1;
+                    goto dir_set;
+                case 5: // DIREITA
+                    nx += 1;
+                    goto dir_set;
+                case 6: // ESQUERDA
+                    nx -= 1;
+                    goto dir_set;
+                default:
+                    goto prox_cano;
+            }
+
+            dir_set:
+            if (nx < 0)          {goto prox_cano;}
+            if (nx >= this->dim) {goto prox_cano;}
+            if (ny < 0)          {goto prox_cano;}
+            if (ny >= this->dim) {goto prox_cano;}
+            if (nz < 0)          {goto prox_cano;}
+            if (nz >= this->dim) {goto prox_cano;}
+
+            if(this->mundo[nx][ny][nz] == 0) {
+                this->mundo[nx][ny][nz] = i+1; // seta o numero do cano
+                this->memoria[nx][ny][nz] = dir; // seta a direção tomada pra chegar aqui
+
+                this->pos[i].x = nx;
+                this->pos[i].y = ny;
+                this->pos[i].z = nz;
+                goto prox_cano;
+            }
+        }
+
+    prox_cano:
+#ifdef rand_att
+        return;
+#else
+        continue;
+        }
+#endif
+
+}
+
+
+void Pipes::render(double var_tamanho, bool usa_textura) {
+
+
+#ifdef textura
+
+   if(!this->textura_carregada && usa_textura) {
+
+
+       this->cubo_image = SOIL_load_image("cubo.png", &this->cubo_x, &this->cubo_y, 0, SOIL_LOAD_RGB);
+       glGenTextures(1, &this->cubo_text);
+       glBindTexture(GL_TEXTURE_2D, this->cubo_text);
+       glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, this->cubo_x, this->cubo_y, 0, GL_RGB, GL_UNSIGNED_BYTE, this->cubo_image);
+
+       if( 0 == this->cubo_text ) {
+           printf( "SOIL loading error: '%s'\n", SOIL_last_result() );
+       }
+
+
+       this->ligamento_image = SOIL_load_image("ligamento.png", &this->ligamento_x, &this->ligamento_y, 0, SOIL_LOAD_RGB);
+       glGenTextures(1, &this->ligamento_text);
+       glBindTexture(GL_TEXTURE_2D, this->ligamento_text);
+       glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, this->ligamento_x, this->ligamento_y, 0, GL_RGB, GL_UNSIGNED_BYTE, this->ligamento_image);
+
+
+       if( 0 == this->ligamento_text ) {
+           printf( "SOIL loading aerror: '%s'\n", SOIL_last_result() );
+       }
+
+       this->textura_carregada = true;
+   }
+
+
+   if(usa_textura) {
+       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+       glEnable(GL_TEXTURE_2D);
+       glBindTexture(GL_TEXTURE_2D, this->cubo_text);
+   }
+
+#endif
+
+    for(int i = 0; i < this->dim; i++) {
+        for(int j = 0; j < this->dim; j++) {
+            for(int k = 0; k < this->dim; k++) {
+
+                int num_cano = this->mundo[i][j][k];
+                if(num_cano != 0) {
+
+                    double dt = var_tamanho;
+                    //goto liga;
+                    // FRONT
+                    glBegin(GL_POLYGON);
+                        this->set_cor(num_cano);
+                        glNormal3f(0.0, 0.0, 1.0);
+                        glTexCoord2f(1.0f, 1.0f); glVertex3f( i + dt, j + dt, k + dt);
+                        glTexCoord2f(0.0f, 1.0f); glVertex3f( i - dt, j + dt, k + dt);
+                        glTexCoord2f(0.0f, 0.0f); glVertex3f( i - dt, j - dt, k + dt);
+                        glTexCoord2f(1.0f, 0.0f); glVertex3f( i + dt, j - dt, k + dt);
+                    glEnd();
+
+                    // BACK
+                    glBegin(GL_POLYGON);
+                        this->set_cor(num_cano);
+                        glNormal3f(0.0, 0.0, -1.0);
+                        glTexCoord2f(1.0f, 1.0f); glVertex3f( i + dt, j + dt, k - dt);
+                        glTexCoord2f(0.0f, 1.0f); glVertex3f( i - dt, j + dt, k - dt);
+                        glTexCoord2f(0.0f, 0.0f); glVertex3f( i - dt, j - dt, k - dt);
+                        glTexCoord2f(1.0f, 0.0f); glVertex3f( i + dt, j - dt, k - dt);
+                    glEnd();
+
+                    // RIGHT
+                    glBegin(GL_POLYGON);
+                        this->set_cor(num_cano);
+                        glNormal3f(1.0, 0.0, 0.0);
+                        glTexCoord2f(1.0f, 0.0f); glVertex3f( i + dt, j + dt, k + dt);
+                        glTexCoord2f(1.0f, 1.0f); glVertex3f( i + dt, j - dt, k + dt);
+                        glTexCoord2f(0.0f, 1.0f); glVertex3f( i + dt, j - dt, k - dt);
+                        glTexCoord2f(0.0f, 0.0f); glVertex3f( i + dt, j + dt, k - dt);
+                    glEnd();
+
+                    // LEFT
+                    glBegin(GL_POLYGON);
+                        this->set_cor(num_cano);
+                        glNormal3f(-1.0, 0.0, 0.0);
+                        glTexCoord2f(1.0f, 0.0f); glVertex3f( i - dt, j + dt, k + dt);
+                        glTexCoord2f(1.0f, 1.0f); glVertex3f( i - dt, j - dt, k + dt);
+                        glTexCoord2f(0.0f, 1.0f); glVertex3f( i - dt, j - dt, k - dt);
+                        glTexCoord2f(0.0f, 0.0f); glVertex3f( i - dt, j + dt, k - dt);
+                    glEnd();
+
+                    // TOP
+                    glBegin(GL_POLYGON);
+                        this->set_cor(num_cano);
+                        glNormal3f(0.0, 1.0, 0.0);
+                        glTexCoord2f(1.0f, 1.0f); glVertex3f( i - dt, j + dt, k + dt);
+                        glTexCoord2f(0.0f, 1.0f); glVertex3f( i + dt, j + dt, k + dt);
+                        glTexCoord2f(0.0f, 0.0f); glVertex3f( i + dt, j + dt, k - dt);
+                        glTexCoord2f(1.0f, 0.0f); glVertex3f( i - dt, j + dt, k - dt);
+                    glEnd();
+
+                    // BOTTOM
+                    glBegin(GL_POLYGON);
+                        this->set_cor(num_cano);
+                        glNormal3f(0.0, -1.0, 0.0);
+                        glTexCoord2f(1.0f, 1.0f); glVertex3f( i - dt, j - dt, k + dt);
+                        glTexCoord2f(0.0f, 1.0f); glVertex3f( i + dt, j - dt, k + dt);
+                        glTexCoord2f(0.0f, 0.0f); glVertex3f( i + dt, j - dt, k - dt);
+                        glTexCoord2f(1.0f, 0.0f); glVertex3f( i - dt, j - dt, k - dt);
+                    glEnd();
+liga:
+                    //TODO: passar pra uma função a parte
+                    if(this->conectar && !(var_tamanho > 0.5)) {
+
+                        int dir = this->memoria[i][j][k];
+                        if (dir == 0) { continue; }
+
+#ifdef textura
+                        if(usa_textura) {
+                            glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+                            glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+                            glEnable(GL_TEXTURE_2D);
+                            glBindTexture(GL_TEXTURE_2D, this->ligamento_text);
+                        }
+#endif
+
+
+                        switch(dir) {
+                            case 1: // CIMA
+
+                                // FRENTE
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i - dt, j   - dt, k - dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i - dt, j-1 + dt, k - dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i + dt, j-1 + dt, k - dt);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i + dt, j   - dt, k - dt);
+                                glEnd();
+
+                                // ESQUERDA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i - dt, j   - dt, k - dt);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i - dt, j   - dt, k + dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i - dt, j-1 + dt, k + dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i - dt, j-1 + dt, k - dt);
+                                glEnd();
+
+                                // TRAS
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i - dt, j   - dt, k + dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i - dt, j-1 + dt, k + dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i + dt, j-1 + dt, k + dt);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i + dt, j   - dt, k + dt);
+                                glEnd();
+
+                                // DIREITA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i + dt, j   - dt, k - dt);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i + dt, j   - dt, k + dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i + dt, j-1 + dt, k + dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i + dt, j-1 + dt, k - dt);
+                                glEnd();
+
+                                break;
+                            case 2: // BAIXO
+
+                                // FRENTE
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i - dt, j   + dt, k - dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i + dt, j   + dt, k - dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i + dt, j+1 - dt, k - dt);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i - dt, j+1 - dt, k - dt);
+                                glEnd();
+
+                                // ESQUERDA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i - dt, j   + dt, k - dt);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i - dt, j+1 - dt, k - dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i - dt, j+1 - dt, k + dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i - dt, j   + dt, k + dt);
+                                glEnd();
+
+                                // TRAS
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i - dt, j   + dt, k + dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i + dt, j   + dt, k + dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i + dt, j+1 - dt, k + dt);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i - dt, j+1 - dt, k + dt);
+                                glEnd();
+
+                                // DIREITA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i + dt, j   + dt, k - dt);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i + dt, j+1 - dt, k - dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i + dt, j+1 - dt, k + dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i + dt, j   + dt, k + dt);
+                                glEnd();
+
+                                break;
+                            case 3: // FRENTE
+
+                                // CIMA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i - dt, j   + dt, k   + dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i - dt, j   + dt, k+1 - dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i + dt, j   + dt, k+1 - dt);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i + dt, j   + dt, k   + dt);
+                                glEnd();
+
+                                // ESQUERDA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i - dt, j   + dt, k   + dt);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i - dt, j   + dt, k+1 - dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i - dt, j   - dt, k+1 - dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i - dt, j   - dt, k   + dt);
+                                glEnd();
+
+                                // BAIXO
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i - dt, j   - dt, k   + dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i - dt, j   - dt, k+1 - dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i + dt, j   - dt, k+1 - dt);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i + dt, j   - dt, k   + dt);
+                                glEnd();
+
+                                // DIREITA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i + dt, j   + dt, k   + dt);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i + dt, j   + dt, k+1 - dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i + dt, j   - dt, k+1 - dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i + dt, j   - dt, k   + dt);
+                                glEnd();
+
+                                break;
+                            case 4: // TRAS
+
+                                // CIMA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i - dt, j   + dt, k   - dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i - dt, j   + dt, k-1 + dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i + dt, j   + dt, k-1 + dt);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i + dt, j   + dt, k   - dt);
+                                glEnd();
+
+                                // ESQUERDA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i - dt, j   + dt, k   - dt);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i - dt, j   + dt, k-1 + dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i - dt, j   - dt, k-1 + dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i - dt, j   - dt, k   - dt);
+                                glEnd();
+
+                                // BAIXO
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i - dt, j   - dt, k   - dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i - dt, j   - dt, k-1 + dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i + dt, j   - dt, k-1 + dt);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i + dt, j   - dt, k   - dt);
+                                glEnd();
+
+                                // DIREITA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i + dt, j   + dt, k   - dt);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i + dt, j   + dt, k-1 + dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i + dt, j   - dt, k-1 + dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i + dt, j   - dt, k   - dt);
+                                glEnd();
+
+                                break;
+                            case 5: // DIREITA
+
+                                // FRENTE
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i   - dt, j + dt, k - dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i-1 + dt, j + dt, k - dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i-1 + dt, j - dt, k - dt);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i   - dt, j - dt, k - dt);
+                                glEnd();
+
+                                // CIMA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i   - dt, j + dt, k - dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i-1 + dt, j + dt, k - dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i-1 + dt, j + dt, k + dt);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i   - dt, j + dt, k + dt);
+                                glEnd();
+
+                                // TRAS
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i   - dt, j + dt, k + dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i-1 + dt, j + dt, k + dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i-1 + dt, j - dt, k + dt);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i   - dt, j - dt, k + dt);
+                                glEnd();
+
+                                // BAIXO
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i   - dt, j - dt, k - dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i-1 + dt, j - dt, k - dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i-1 + dt, j - dt, k + dt);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i   - dt, j - dt, k + dt);
+                                glEnd();
+
+                                break;
+                            case 6: // ESQUERDA
+
+                                // FRENTE
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i   + dt, j + dt, k - dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i+1 - dt, j + dt, k - dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i+1 - dt, j - dt, k - dt);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i   + dt, j - dt, k - dt);
+                                glEnd();
+
+                                // CIMA
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i   + dt, j + dt, k - dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i+1 - dt, j + dt, k - dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i+1 - dt, j + dt, k + dt);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i   + dt, j + dt, k + dt);
+                                glEnd();
+
+                                // TRAS
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i   + dt, j + dt, k + dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i+1 - dt, j + dt, k + dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i+1 - dt, j - dt, k + dt);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i   + dt, j - dt, k + dt);
+                                glEnd();
+
+                                // BAIXO
+                                glBegin(GL_POLYGON);
+                                    this->set_cor(num_cano);
+                                    glTexCoord2f(1.0f, 1.0f); glVertex3f(i   + dt, j - dt, k - dt);
+                                    glTexCoord2f(0.0f, 1.0f); glVertex3f(i+1 - dt, j - dt, k - dt);
+                                    glTexCoord2f(0.0f, 0.0f); glVertex3f(i+1 - dt, j - dt, k + dt);
+                                    glTexCoord2f(1.0f, 0.0f); glVertex3f(i   + dt, j - dt, k + dt);
+                                glEnd();
+
+                                break;
+                        }
+
+#ifdef textura
+                            if(usa_textura) {
+                                glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+                                glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+                                glEnable(GL_TEXTURE_2D);
+                                glBindTexture(GL_TEXTURE_2D, this->cubo_text);
+                            }
+#endif
+                    }
+
+
+
+                }
+
+            }
+        }
+    }
+
+}
+
+
+void Pipes::set_cor(int cor) {
+
+    glColor3b(2, 2, 2);
+    switch(cor) {
+        case 1:
+            glColor3ub(1, 168, 188);
+            break;
+        case 2:
+            glColor3ub(61, 52, 169);
+            break;
+        case 3:
+            glColor3ub(177, 72, 41);
+            break;
+        case 4:
+            glColor3ub(16, 43, 126);
+            break;
+        case 5:
+            glColor3ub(110, 31, 37);
+            break;
+        case 6:
+            glColor3ub(140, 108, 23);
+            break;
+        case 7:
+            glColor3ub(27, 99, 35);
+            break;
+        case 8:
+            glColor3ub(118, 52, 100);
+            break;
+    }
+
+}
